@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.wrf.rbac.role.Dao.RoleDao">
+	<!-- roleMap映射 -->
+	<resultMap type="com.wrf.rbac.role.Model.Role" id="roleMap">
+		<result column="role_id" property="roleId" javaType="int"
+			jdbcType="INTEGER" />
+		<result column="role_name" property="roleName" javaType="string"
+			jdbcType="VARCHAR" />
+		<result column="role_desc" property="roleDesc" javaType="string"
+			jdbcType="VARCHAR" />
+		<result column="role_status" property="roleStatus" javaType="int"
+			jdbcType="INTEGER" />
+	</resultMap>
+	<!-- role字段 -->
+	<sql id="roleColumn">
+		role_id,role_name,role_desc,role_status
+	</sql>
+	<sql id="roleColumnAlias">
+		${alias}.role_id,${alias}.role_name,${alias}.role_desc,${alias}.role_status
+	</sql>
+	<!-- 查询可用角色列表 -->
+	<select id="selectRoleEnableList" resultMap="roleMap">
+		SELECT
+			<include refid="roleColumn"/>
+			FROM
+		role
+			where role_status = 1
+		AND 
+			role_id !=1
+		ORDER BY
+			role_id
+	</select>
+	<!-- 查询所有角色列表 -->
+	<select id="selectRoleList" resultMap="roleMap">
+		SELECT
+		<include refid="roleColumn"/>
+			FROM
+		role
+			WHERE
+				role_status=1
+			AND
+				role_id !=1
+			ORDER BY
+		role_id
+			DESC
+		
+	</select>
+	<!--新增角色 -->
+	<insert id="add" keyProperty="roleId" useGeneratedKeys="true" parameterType="com.wrf.rbac.role.Model.Role">
+		INSERT
+			INTO 
+		role
+			<trim prefix="(" suffix=")" suffixOverrides=",">
+				<if test="roleName !=null and roleName!=''">
+					role_name,
+				</if>
+				<if test="roleDesc !=null and roleDesc !=''" >
+					role_desc,
+				</if>
+			</trim>
+		VALUES
+			<trim prefix="(" suffix=")" suffixOverrides=",">
+				<if test="roleName !=null and roleName!=''">
+					#{roleName},
+				</if>
+				<if test="roleDesc !=null and roleDesc !=''" >
+					#{roleDesc},
+				</if>
+			</trim>
+	</insert>
+	
+	<!-- 查询角色数量 -->
+	<select id="getRoleCount" parameterType="string" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM
+			role
+		WHERE
+			role_name=#{roleName}
+	</select>
+	<!-- 根据角色ID查询角色信息 -->
+	<select id="selectRoleByRoleId" parameterType="_int" resultMap="roleMap">
+		SELECT
+			<include refid="roleColumn"/>
+		FROM
+			role
+		WHERE
+			role_id=#{roleId}
+	</select>
+	
+	<!-- 编辑角色信息 -->
+	<update id="update" parameterType="com.wrf.rbac.role.Model.Role">
+		UPDATE
+			role
+		<set>
+			<if test="roleName!=null and roleName!=''">
+				role_name=#{roleName},
+			</if>
+			<if test="roleDesc!=null and roleDesc!=''">
+				role_desc=#{roleDesc}
+			</if>
+		</set>
+		WHERE
+			role_id=#{roleId}
+	</update>
+	<!-- 查询角色关联的用户数量 -->
+	<select id="selectUserCountByRoleId" parameterType="_int" resultType="_int">
+		SELECT
+		 	count(*)
+		FROM
+			user
+		WHERE
+			user_role_id=#{roleId}
+	</select>
+	
+	<!-- 删除角色信息 -->
+	<update id="delete" parameterType="_int">
+		UPDATE 
+			role
+		SET
+			role_status=0
+		WHERE
+			role_id=#{roleId}
+	</update>
+	
+	
+	
+
+</mapper>

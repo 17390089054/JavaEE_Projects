@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.wrf.rbac.user.Dao.UserDao">
+	<!-- userMap映射 -->
+	<resultMap type="com.wrf.rbac.user.Model.User" id="userMap">
+		<id column="user_id" property="userId" jdbcType="INTEGER" javaType="int" />
+		<result column="account" property="account" jdbcType="VARCHAR"
+			javaType="string" />
+		<result column="password" property="password" jdbcType="VARCHAR"
+			javaType="string" />
+		<result column="user_name" property="userName" jdbcType="VARCHAR"
+			javaType="string" />
+		<result column="user_age" property="userAge" jdbcType="INTEGER"
+			javaType="int" />
+		<result column="user_sex" property="userSex" jdbcType="VARCHAR"
+			javaType="string" />
+		<result column="user_photo" property="userPhoto" jdbcType="VARCHAR"
+			javaType="string" />
+		<result column="user_status" property="userStatus" jdbcType="INTEGER"
+			javaType="int" />
+		<result column="user_role_id" property="userRoleId" jdbcType="INTEGER"
+			javaType="int" />
+		<result column="user_create_time" property="userCreateTime"
+			jdbcType="TIMESTAMP" javaType="java.util.Date" />
+	</resultMap>
+	<!-- userMap映射(含Role) -->
+	<resultMap type="com.wrf.rbac.user.Model.User" id="userRoleMap"
+		extends="userMap">
+		<association property="role" javaType="com.wrf.rbac.role.Model.Role"
+			resultMap="com.wrf.rbac.role.Dao.RoleDao.roleMap" />
+	</resultMap>
+
+	<!-- user字段 -->
+	<sql id="userColumn">
+		user_id,account,password,user_name,user_age,user_sex,user_photo,user_status,user_role_id,user_create_time
+	</sql>
+	
+	<sql id="userColumnAlias">
+		${alias}.user_id,${alias}.account,${alias}.password,${alias}.user_name,${alias}.user_photo,${alias}.user_age,${alias}.user_sex
+		,${alias}.user_status,${alias}.user_role_id,${alias}.user_create_time
+	</sql>
+
+	<!-- 用户登录 -->
+	<select id="login" resultMap="userRoleMap">
+		SELECT 
+			<include refid="userColumnAlias">
+				<property name="alias" value="u"/>
+			</include>,
+			<include refid="com.wrf.rbac.role.Dao.RoleDao.roleColumnAlias">
+				<property name="alias" value="r"/>
+			</include>
+		FROM 
+			user u 
+		LEFT JOIN
+			role r
+		ON 
+			u.user_role_id=r.role_id
+		WHERE
+			u.account=#{account} AND u.password=#{password}
+	</select>
+
+	<!-- 查询用户分页列表 -->
+	<select resultMap="userRoleMap" id="selectUserPageList" parameterType="com.wrf.rbac.common.Model.Pager">
+		SELECT 
+			<include refid="userColumnAlias">
+				<property name="alias" value="u"/>
+			</include>,
+			<include refid="com.wrf.rbac.role.Dao.RoleDao.roleColumnAlias">
+				<property name="alias" value="r"/>
+			</include>
+		FROM 
+			user u 
+		LEFT JOIN
+			role r
+		ON 
+			u.user_role_id=r.role_id
+		<where>
+			<if test="queryList.userName!=null and queryList.userName!=''">
+					u.user_name LIKE CONCAT ('%',#{queryList.userName},'%') 
+				</if>
+				<if test="queryList.roleId!=null and queryList.roleId!=''">
+					AND u.user_role_id=#{queryList.roleId}
+				</if>	
+					
+		</where>
+		ORDER BY 
+			user_id 
+		DESC
+		LIMIT
+			${offset},${pageSize}
+	
+	</select>
+	
+	<!-- 查询用户总数量 --><!-- CentOS7 报错 -->
+	<select id="selectUserCount" parameterType="com.wrf.rbac.common.Model.Pager" resultType="_int" >
+		SELECT
+			count(*)
+		FROM
+			USER
+		<where>
+			<if test="queryList.userName!=null and queryList.userName!=''">
+				user_name LIKE CONCAT ('%',#{queryList.userName},'%') 
+			</if>
+			<if test="queryList.roleId!=null and queryList.roleId!=''">
+				AND user_role_id=#{queryList.roleId}
+			</if>
+		</where>
+	</select>
+	
+	<!-- 用户添加 -->
+	<insert id="add" parameterType="com.wrf.rbac.user.Model.User" useGeneratedKeys="true" keyProperty="userId">
+		INSERT INTO
+			user
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="account!=null and account !=''">
+				account,
+			</if>
+			<if test="password!=null and password !=''">
+				password,
+			</if>
+			<if test="userName!=null and userName !=''">
+				user_name,
+			</if>
+			<if test="userSex!=null and userSex !=''">
+				user_sex,
+			</if>
+			<if test="userAge!=null ">
+				user_age,
+			</if>
+			<if test="userRoleId!=null ">
+				user_role_id,
+			</if>
+			user_create_time
+		</trim>
+		<trim prefix="VALUES(" suffix=")" prefixOverrides=",">
+			<if test="account!=null and account !=''">
+				#{account},
+			</if>
+			<if test="password!=null and password !=''">
+				#{password},
+			</if>
+			<if test="userName!=null and userName !=''">
+				#{userName},
+			</if>
+			<if test="userSex!=null and userSex !=''">
+				#{userSex},
+			</if>
+			<if test="userAge!=null ">
+				#{userAge},
+			</if>
+			<if test="userRoleId!=null ">
+				#{userRoleId},
+			</if>
+			NOW()
+		</trim>
+	</insert>
+	
+	<!-- 查询账号数量 -->
+	<select id="getAccountCount" parameterType="string" resultType="_int">
+		SELECT 
+			COUNT(*) 
+		FROM 
+			user
+		WHERE 
+			account=#{account}	
+	</select>
+	
+	<!-- 根据user_id查询用户信息 -->
+	<select id="selectUserByUserId" parameterType="Integer" resultMap="userMap">
+		SELECT
+			<include refid="userColumn"/>
+			FROM
+		user
+			WHERE
+		user_id=#{userId}
+	</select>
+	
+	<!-- 更新用户数据 -->
+	<update id="update" parameterType="com.wrf.rbac.user.Model.User">
+		UPDATE
+			user
+		<set>
+			<if test="account !=null and account !=''">
+				account=#{account},
+			</if>
+			<if test="userName !=null and userName !=''">
+				user_name=#{userName},
+			</if>
+			<if test="userAge!=null">
+				user_age=#{userAge},
+			</if>
+			<if test="userSex!=null and userSex!=''">
+				user_sex=#{userSex},
+			</if>
+			<if test="userRoleId !=null">
+				user_role_id=#{userRoleId}
+			</if>
+		</set>
+		WHERE 
+			user_id=#{userId}
+	</update>
+	<!-- 修改角色状态 -->
+	<update id="reviseUserStatus" parameterType="int" >
+		UPDATE
+			user
+		SET 
+			user_status=#{userStatus}
+		WHERE
+			user_id=#{userId}
+	</update>
+	<!-- 上传头像 -->	
+	<update id="updateUserPhoto">
+		UPDATE 
+			user
+		SET 
+			user_photo=#{userPhoto}
+		WHERE
+			user_id=#{userId}
+	
+	</update>
+</mapper>

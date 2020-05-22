@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+    <!-- 1开启注解 -->
+    <context:annotation-config/>
+    <!-- 2扫描 -->
+    <context:component-scan base-package="com" >
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+        <context:exclude-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice"/>
+    </context:component-scan>
+    <!-- 3 读取数据库属性文件 -->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <!-- 4 配置数据源 准备连接池 -->
+    <bean id="druidDataSource" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">
+        <property name="driverClassName" value="${mysql.driver}"/>
+        <property name="url" value="${mysql.url}"/>
+        <property name="username" value="${mysql.username}"/>
+        <property name="password" value="${mysql.password}"/>
+   </bean>
+   <!-- 5 创建sqlSessionFactory -->
+   <bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="druidDataSource"/>
+        <!-- 读取Mybatis核心配置文件 -->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!-- 读取映射文件 -->
+        <property name="mapperLocations" value="classpath*:com/**/*Mapper.xml"/>
+   </bean>
+   <!-- 6 创建接口实现类 sqlSession.getMapper(UserDao.class); -->
+   <bean id="mapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!-- 给哪个位置的接口创建实现类  -->
+        <property name="basePackage" value="com.**.Dao"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryBean"/>
+        <property name="annotationClass" value="org.springframework.stereotype.Repository"/>
+   </bean>
+   <!-- 7 使用事务 事务管理谁？ -->
+   <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="druidDataSource"/>
+   </bean>
+   <!-- 8 哪些方法需要被事务管理 -->
+   <tx:advice id="transactionAdvice" transaction-manager="transactionManager">
+    <tx:attributes>
+        <tx:method name="get*"    propagation="REQUIRED" />
+        <tx:method name="select*" propagation="REQUIRED" />
+        <tx:method name="query*"  propagation="REQUIRED" />
+        <tx:method name="count*"  propagation="REQUIRED" />
+        <tx:method name="check*"  propagation="REQUIRED" />
+        <tx:method name="update*" propagation="REQUIRED" />
+        <tx:method name="delete*" propagation="REQUIRED" />
+        <tx:method name="add*" 	  propagation="REQUIRED" />
+        <tx:method name="revise*" propagation="REQUIRED" />
+    </tx:attributes>
+   </tx:advice>
+   <!-- 9 使用Aop控制哪些文件中的方法需要被事务管理 -->
+   <aop:config proxy-target-class="true">
+        <aop:pointcut expression="execution(* com..*Service*.*(..))" id="servicePointCut"/>
+        <aop:advisor advice-ref="transactionAdvice" pointcut-ref="servicePointCut"/>
+   </aop:config>
+   <!-- 10 其他 -->
+   <tx:annotation-driven proxy-target-class="true"/>
+   <aop:aspectj-autoproxy proxy-target-class="true"/>
+   
+   
+   
+   
+</beans>

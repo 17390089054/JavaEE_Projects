@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.wrf.rbac.menu.Dao.MenuDao">
+	<resultMap type="com.wrf.rbac.menu.Model.Menu" id="menuMap">
+		<id column="menu_id" property="menuId"/>
+		<result column="menu_name" property="menuName"/>
+		<result column="menu_url" property="menuUrl"/>
+		<result column="menu_parent_id" property="menuParentId"/>
+		<result column="menu_logo" property="menuLogo"/>
+		<result column="menu_status" property="menuStatus"/>
+	</resultMap>
+	
+	<!-- 字段 -->	
+	<sql id="menuColumn">
+		menu_id,menu_name,menu_url,menu_parent_id,menu_logo,menu_status
+	</sql>
+	<sql id="menuColumnAlias">
+		${alias}.menu_id,${alias}.menu_name,${alias}.menu_url,${alias}.menu_parent_id,${alias}.menu_logo,${alias}.menu_status
+	</sql>
+	
+	<!-- 通过角色id查询子菜单 -->
+	<select  id="selectChildMenuListByRoleId" parameterType="int" resultMap="menuMap">
+		SELECT
+			<include refid="menuColumnAlias">
+				<property name="alias" value="m"/>
+			</include>
+		FROM
+			role_menu_link rl,
+			menu m
+		WHERE
+			rl.rm_menu_id = m.menu_id
+		AND rl.rm_role_id = #{roleId}
+		AND m.menu_status =1
+	</select>
+	
+	<!-- 通过角色ID查询父菜单 -->
+	<select id="selectParentMenuListByRoleId" parameterType="int" resultMap="menuMap">
+		SELECT
+			<include refid="menuColumn"/>
+		FROM
+			menu
+		WHERE
+			menu_id IN (
+				SELECT DISTINCT
+					menu_parent_id
+				FROM
+					role_menu_link rl,
+					menu m
+				WHERE
+					rl.rm_menu_id = m.menu_id
+				AND rl.rm_role_id = #{roleId}
+			)
+		
+	</select>
+	<!-- 查询角色拥有的子菜单列表 -->
+	<select id="selectIncludeChildMenuListByRoleId" resultMap="menuMap" parameterType="_int">
+		SELECT
+			*
+		FROM
+			menu m,
+			role_menu_link rm
+		WHERE
+			m.menu_id = rm.rm_menu_id
+		AND rm_role_id = #{roleId}
+		AND m.menu_status=1
+	</select>
+	
+	<!-- 查询角色未拥有的菜单列表 -->
+	<select id="selectExcludeChildMenuListByRoleId" resultMap="menuMap" parameterType="_int">
+		SELECT
+			*
+		FROM
+			menu
+		WHERE
+			menu_id NOT IN (
+				SELECT
+					rm_menu_id
+				FROM
+					role_menu_link
+				WHERE
+					rm_role_id = #{roleId}
+			)
+		AND menu_parent_id IS NOT NULL
+		AND menu_status=1
+	</select>
+	
+	<!-- 查询所有的父菜单列表 -->
+	<select id="selectAllParentMenuList" resultMap="menuMap">
+		SELECT
+			<include refid="menuColumn"/>
+		FROM
+			menu
+		WHERE
+			menu_parent_id IS NULL
+		AND
+			menu_status !=0
+	</select>
+	
+	<!-- 删除角色关联菜单 -->
+	<delete id="deleteMenuByRoldId" parameterType="_int">
+		DELETE
+			FROM 
+				role_menu_link
+			WHERE
+				rm_role_id=#{roleId}
+	</delete>
+	<!-- 插入新的角色菜单 -->
+	<insert id="addBatchMenu" useGeneratedKeys="true" keyProperty="menuId">
+		INSERT INTO
+			role_menu_link
+		(rm_role_id,rm_menu_id)
+		VALUES
+		<foreach collection="menuIds" item="menuId" separator=",">
+			(#{roleId},#{menuId})
+		</foreach>	 
+	</insert>
+	
+	<!-- 增添超级管理员菜单 -->
+	<insert id="addSuperAdministratorMenu" parameterType="_int">
+		INSERT INTO 
+			role_menu_link
+		VALUES
+			( NULL, 1, #{menuId})
+	</insert>
+	
+	
+	
+	<!-- 查询菜单列表 -->
+	<select id="selectAllChildMenuList" resultMap="menuMap">
+		SELECT 
+			<include refid="menuColumn"/>
+		FROM
+			menu
+		WHERE 
+			menu_parent_id is not null		
+		AND
+			menu_status !=0
+	</select>
+
+	<!-- 添加父菜单 -->
+	<insert id="addParentMenu" useGeneratedKeys="true" keyProperty="menuId" parameterType="com.wrf.rbac.menu.Model.Menu">
+		INSERT INTO
+			menu
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="menuName!=null and menuName!=''">
+				menu_name,
+			</if>
+			<if test="menuUrl !=null and menuUrl!=''">
+				menu_url,
+			</if>
+			<if test="menuLogo !=null and menuLogo!=''">
+				menu_logo,
+			</if>
+		</trim>
+		<trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+			<if test="menuName!=null and menuName!=''">
+				#{menuName},
+			</if>
+			<if test="menuUrl !=null and menuUrl!=''">
+				#{menuUrl},
+			</if>
+			<if test="menuLogo !=null and menuLogo!=''">
+				#{menuLogo},
+			</if>
+		</trim>
+	</insert>
+	<!-- 查询菜单数量 -->
+	<select id="getMenuCount" parameterType="string" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM
+			menu
+		WHERE
+			menu_name=#{menuName}
+	</select>
+	
+	<!--添加子菜单 -->
+	<insert id="addChildMenu" parameterType="com.wrf.rbac.menu.Model.Menu" useGeneratedKeys="true" keyProperty="menuId">
+		INSERT INTO
+			menu
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="menuName!=null and menuName!=''">
+				menu_name,
+			</if>
+			<if test="menuUrl !=null and menuUrl!=''">
+				menu_url,
+			</if>
+			<if test="menuLogo !=null and menuLogo!=''">
+				menu_logo,
+			</if>
+			<if test="menuParentId !=null ">
+				menu_parent_id,
+			</if>
+		</trim>
+		<trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+			<if test="menuName!=null and menuName!=''">
+				#{menuName},
+			</if>
+			<if test="menuUrl !=null and menuUrl!=''">
+				#{menuUrl},
+			</if>
+			<if test="menuLogo !=null and menuLogo!=''">
+				#{menuLogo},
+			</if>
+			<if test="menuParentId !=null ">
+				#{menuParentId},
+			</if>
+		</trim>
+	</insert>
+	<!-- 通过菜单ID查询菜单元素 -->
+	<select id="selectMenuByMenuId" parameterType="_int" resultMap="menuMap">
+		SELECT
+			<include refid="menuColumn"/>
+		FROM 
+			menu
+		WHERE
+			menu_id=#{menuId}
+	</select>	
+	<!--通过MenuID更新子菜单-->
+	<update id="updateChild" parameterType="com.wrf.rbac.menu.Model.Menu">
+		UPDATE
+			menu
+		<set>
+			<if test="menuName!=null and menuName!=''">
+				menu_name=#{menuName},
+			</if>
+			<if test="menuUrl!=null and menuUrl!=''">
+				menu_url=#{menuUrl},
+			</if>				
+			<if test="menuParentId!=null and menuParentId!=''">
+				menu_parent_id=#{menuParentId}
+			</if>
+		</set>	
+		WHERE
+			menu_id=#{menuId}
+	</update>
+	
+	<!--通过MenuID更新父菜单-->
+	<update id="updateParent" parameterType="com.wrf.rbac.menu.Model.Menu">
+		UPDATE
+			menu
+		<set>
+			<if test="menuName!=null and menuName!=''">
+				menu_name=#{menuName},
+			</if>
+			<if test="menuUrl!=null and menuUrl!=''">
+				menu_url=#{menuUrl},
+			</if>				
+		</set>	
+		WHERE
+			menu_id=#{menuId}
+	</update>
+	<!-- 查询父菜单是否为空 -->
+	<select id="selectChildMenuCountByMenuId" parameterType="_int" resultType="_int">
+	SELECT
+		count(*)
+	FROM
+		menu
+	WHERE
+		menu_parent_id = #{menuId}
+	AND
+		menu_status=1
+	</select>
+	<!-- 通过菜单ID删除菜单 -->
+	<update id="deleteMenuByMenuId" parameterType="_int">
+		UPDATE
+			menu
+		SET
+			menu_status=0
+		WHERE
+			menu_id=#{menuId}
+	</update>
+
+
+</mapper>
